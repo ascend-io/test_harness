@@ -1,0 +1,93 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+
+"""
+bazel build \
+  //spark/function/test_harness/example:example_deploy.jar \
+  //spark/function/test_harness/example:read \
+  //spark/function/test_harness && \
+bazel run //spark/function/test_harness/example:read \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/rollingsales.csv.gz \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/rollingsales.parquet && \
+bazel run //spark/function/test_harness \
+bash -x $(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/test_harness \
+  io.ascend.spark.function.test_harness.example.Example \
+  $(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/example/example_deploy.jar \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/result.csv \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/rollingsales.parquet
+"""
+
+"""
+bazel build \
+  //infra/kubespark/spark:deploy_env_deploy.jar \
+  //spark/function/test_harness:test_harness_deploy.jar \
+  //spark/function/test_harness/example:example_deploy.jar \
+&& \
+java \
+  -cp $(git rev-parse --show-toplevel)/bazel-bin/infra/kubespark/spark/deploy_env_deploy.jar:$(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/test_harness_deploy.jar \
+  -Dio.netty.tryReflectionSetAccessible=true \
+  org.apache.spark.deploy.SparkSubmit \
+  --class io.spark.function.test_harness.Harness \
+  spark-internal \
+  io.ascend.spark.function.test_harness.example.Example \
+  $(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/example/example_deploy.jar \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/result.csv \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/rollingsales.parquet
+"""
+
+"""
+bazel build \
+  //infra/kubespark/spark:deploy_env_deploy.jar \
+  //spark/function/test_harness:test_harness_deploy.jar \
+  //spark/function/test_harness/example:example_deploy.jar \
+&& \
+java \
+  -cp $(git rev-parse --show-toplevel)/bazel-bin/infra/kubespark/spark/deploy_env_deploy.jar:$(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/test_harness_deploy.jar \
+  --add-exports java.base/jdk.internal.misc=ALL-UNNAMED \
+  -Dio.netty.tryReflectionSetAccessible=true \
+  org.apache.spark.deploy.SparkSubmit \
+  --class io.spark.function.test_harness.Harness \
+  spark-internal \
+  io.ascend.spark.function.test_harness.example.Example \
+  $(git rev-parse --show-toplevel)/bazel-bin/spark/function/test_harness/example/example_deploy.jar \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/result.csv \
+  $(git rev-parse --show-toplevel)/spark/function/test_harness/example/rollingsales.parquet
+"""
+
+
+scala_library(
+    name = "example_library",
+    srcs = [
+        "Example.scala",
+        "Transaction.scala",
+    ],
+    deps = [
+        "//infra/kubespark/spark:environment",
+    ],
+)
+
+java_binary(
+    name = "example",
+    deploy_env = [
+        "//infra/kubespark/spark:deploy_env",
+    ],
+    main_class = "none",
+    runtime_deps = [
+        ":example_library",
+    ],
+)
+
+scala_binary(
+    name = "read",
+    srcs = [
+        "Read.scala",
+        "Transaction.scala",
+    ],
+    deps = [
+        "//third_party/spark",
+    ],
+    runtime_deps = [
+        "//third_party:slf4j_log4j12-runtime",
+        "//infra/kubespark/spark:environment",
+    ],
+    main_class = "io.ascend.spark.function.test_harness.example.Read",
+)

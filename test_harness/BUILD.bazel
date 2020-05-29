@@ -1,0 +1,55 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@graknlabs_bazel_distribution//maven/templates:rules.bzl", "assemble_maven")
+load(
+    "//:tools.bzl",
+    _scala_2_11 = "scala_2_11",
+)
+
+filegroup(
+    name = "sources",
+    visibility = ["//visibility:public"],
+)
+
+scala_library(
+    name = "library",
+    srcs = glob([
+        "main/**/*.scala",
+    ]),
+    tags = ["maven_coordinates=io.ascend:test-harness:{pom_version}"],
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        "//infra/kubespark/spark:environment",
+        "//third_party:slf4j_log4j12-runtime",
+        "@ascend_guava//:com_google_guava_guava",
+    ],
+    deps = [
+        "//third_party/spark",
+    ] + _scala_2_11([
+        "@maven//:org_apache_hadoop_hadoop_common",
+        "@maven//:org_json4s_json4s_core_" + scala_rje,
+    ]),
+)
+
+java_binary(
+    name = "test_harness",
+    main_class = "io.spark.function.test_harness.Harness",
+    runtime_deps = [
+        ":library",
+    ],
+    jvm_flags = [
+        "--add-exports java.base/jdk.internal.misc=ALL-UNNAMED",
+        "-Dio.netty.tryReflectionSetAccessible=true",
+    ],
+)
+
+assemble_maven(
+    name = "assemble-maven",
+    license = "mit",
+    package = "{maven_packages}",
+    project_name = "Ascend.IO SDK Test Harness",
+    target = ":library",
+    version_file = "//:maven_version",
+    project_description = "Ascend.IO SDK Test Harness",
+    project_url	= "https://github.com/ascend-io",
+    scm_url = "https://github.com/ascend-io",
+)
